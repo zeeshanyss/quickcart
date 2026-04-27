@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Cart — QuickCart{% endblock %}
+{% block extra_head %}
+<style>
+.totals-box { position: sticky; top: 80px; }
+.total-row { display: flex; justify-content: space-between; padding: .5rem 0; border-bottom: 1px solid var(--border); font-size: .95rem; }
+.total-row:last-child { border: none; font-family: 'Syne', sans-serif; font-size: 1.2rem; font-weight: 700; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>🛒 Your Cart</h1>
+    <p>{{ cart.items|length }} item(s) — cart persists across sessions via UUID</p>
+  </div>
+
+  {% if cart.items %}
+  <div class="layout-2col">
+    <div>
+      <div class="card" style="padding:0; overflow:hidden;">
+        {% for item in cart.items %}
+        <div style="display:flex; gap:1rem; padding:1.2rem; border-bottom:1px solid var(--border); align-items:center;" id="row-{{ item.id }}">
+          <img src="{{ item.product.image_url or 'https://placehold.co/80x80/1a1a24/7a7a9a?text=?' }}"
+               style="width:70px; height:70px; object-fit:cover; border-radius:8px; flex-shrink:0;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:600; margin-bottom:.2rem;">{{ item.product.name }}</div>
+            <div style="font-size:.85rem; color:var(--muted);">₹{{ "%.0f"|format(item.product.price) }} each</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:.5rem;">
+            <button class="btn btn-outline btn-sm" onclick="updateQty({{ item.id }}, {{ item.quantity - 1 }})">−</button>
+            <span style="min-width:30px; text-align:center; font-weight:600;" id="qty-{{ item.id }}">{{ item.quantity }}</span>
+            <button class="btn btn-outline btn-sm" onclick="updateQty({{ item.id }}, {{ item.quantity + 1 }})">+</button>
+          </div>
+          <div style="font-family:'Syne',sans-serif; font-weight:700; color:var(--accent); min-width:70px; text-align:right;" id="line-{{ item.id }}">
+            ₹{{ "%.0f"|format(item.product.price * item.quantity) }}
+          </div>
+          <button class="btn btn-danger btn-sm" onclick="removeItem({{ item.id }})">✕</button>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card totals-box">
+      <h3 style="margin-bottom:1.2rem;">Order Summary</h3>
+      <div class="total-row"><span>Subtotal</span><span id="t-subtotal">₹{{ "%.0f"|format(totals.subtotal) }}</span></div>
+      <div class="total-row"><span>GST (18%)</span><span id="t-tax">₹{{ "%.0f"|format(totals.tax) }}</span></div>
+      <div class="total-row"><span>Delivery</span><span id="t-delivery">{{ '₹' + "%.0f"|format(totals.delivery) if totals.delivery > 0 else 'FREE' }}</span></div>
+      {% if totals.discount_pct > 0 %}
+      <div class="total-row" style="color:var(--success);"><span>Reseller Discount ({{ totals.discount_pct|int }}%)</span><span>Applied ✓</span></div>
+      {% endif %}
+      <div class="total-row"><span>Total</span><span id="t-total" style="color:var(--accent);">₹{{ "%.0f"|format(totals.total) }}</span></div>
+      {% if current_user.is_authenticated %}
+      <a href="/checkout" class="btn btn-primary" style="width:100%; margin-top:1.2rem; justify-content:center; padding:.75rem;">Proceed to Checkout</a>
+      {% else %}
+      <a href="/login?next=/checkout" class="btn btn-primary" style="width:100%; margin-top:1.2rem; justify-content:center; padding:.75rem;">Login to Checkout</a>
+      <a href="/register" class="btn btn-outline" style="width:100%; margin-top:.5rem; justify-content:center;">Create Account</a>
+      {% endif %}
+      <a href="/shop" class="btn btn-outline" style="width:100%; margin-top:.5rem; justify-content:center;">Continue Shopping</a>
+      {% if totals.delivery > 0 %}
+      <div style="font-size:.8rem; color:var(--muted); margin-top:.8rem; text-align:center;">Add ₹{{ "%.0f"|format(500 - totals.subtotal) }} more for free delivery</div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:5rem 0; color:var(--muted);">
+    <div style="font-size:4rem; margin-bottom:1rem;">🛒</div>
+    <h3>Your cart is empty</h3>
+    <p style="margin:.5rem 0 1.5rem;">Start shopping to add items.</p>
+    <a href="/shop" class="btn btn-primary">Browse Products</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+async function updateQty(itemId, qty) {
+  const r = await fetch('/cart/update', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({item_id: itemId, quantity: qty})
+  });
+  const d = await r.json();
+  if (d.success) {
+    if (qty <= 0) {
+      document.getElementById('row-' + itemId)?.remove();
+    } else {
+      document.getElementById('qty-' + itemId).textContent = qty;
+    }
+    updateTotals(d.totals);
+    document.getElementById('cart-badge').textContent = d.cart_count;
+  }
+}
+
+async function removeItem(itemId) {
+  const r = await fetch('/cart/remove/' + itemId, {method:'POST'});
+  const d = await r.json();
+  document.getElementById('row-' + itemId)?.remove();
+  updateTotals(d.totals);
+  document.getElementById('cart-badge').textContent = d.cart_count;
+}
+
+function updateTotals(t) {
+  document.getElementById('t-subtotal').textContent = '₹' + Math.round(t.subtotal);
+  document.getElementById('t-tax').textContent      = '₹' + Math.round(t.tax);
+  document.getElementById('t-delivery').textContent = t.delivery > 0 ? '₹' + t.delivery : 'FREE';
+  document.getElementById('t-total').textContent    = '₹' + Math.round(t.total);
+}
+</script>
+{% endblock %}

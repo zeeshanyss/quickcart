@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}My Orders — QuickCart{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header"><h1>My Orders</h1></div>
+  {% if orders %}
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table>
+      <thead><tr>
+        <th>Order Ref</th><th>Date</th><th>Status</th><th>Payment</th><th>Total</th><th>Action</th>
+      </tr></thead>
+      <tbody>
+      {% for o in orders %}
+      <tr>
+        <td><strong>#{{ o.order_ref }}</strong></td>
+        <td>{{ o.created_at.strftime('%d %b %Y, %H:%M') }}</td>
+        <td><span class="badge badge-{{ o.status }}">{{ o.status|title }}</span></td>
+        <td style="text-transform:capitalize;">{{ o.payment_method }}</td>
+        <td style="font-weight:700; color:var(--accent);">₹{{ "%.0f"|format(o.total) }}</td>
+        <td><a href="/orders/{{ o.id }}" class="btn btn-outline btn-sm">View</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:4rem; color:var(--muted);">
+    <div style="font-size:3rem; margin-bottom:1rem;">📦</div>
+    <h3>No orders yet</h3>
+    <a href="/shop" class="btn btn-primary" style="margin-top:1rem;">Start Shopping</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

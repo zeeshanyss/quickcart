@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Bulk Upload — Admin{% endblock %}
+{% block content %}
+<div class="container" style="max-width:800px;">
+  <div class="page-header">
+    <h1>📤 Bulk Product Upload</h1>
+    <p>Upload a CSV file to add or update multiple products at once</p>
+    <a href="/admin" style="font-size:.85rem; color:var(--muted);">← Dashboard</a>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h3 style="margin-bottom:1rem;">CSV Format</h3>
+    <div style="overflow-x:auto;">
+      <table style="font-size:.8rem;">
+        <thead><tr>
+          <th>Column</th><th>Required</th><th>Example</th><th>Notes</th>
+        </tr></thead>
+        <tbody>
+          {% for col, req, ex, note in [
+            ('name','Yes','Wireless Earbuds','Product name'),
+            ('price','Yes','2999.00','Numeric, no currency symbol'),
+            ('stock','Yes','50','Integer'),
+            ('category','Yes','Electronics','Created if not exists'),
+            ('description','No','Great product','Optional'),
+            ('sku','No','SKU001','Unique — used for updates'),
+            ('image_url','No','https://...','Product image URL'),
+          ] %}
+          <tr>
+            <td><code>{{ col }}</code></td>
+            <td><span class="badge {{ 'badge-confirmed' if req == 'Yes' else 'badge-pending' }}">{{ req }}</span></td>
+            <td style="color:var(--muted);">{{ ex }}</td>
+            <td style="color:var(--muted);">{{ note }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:1rem;">
+      <a href="/admin/bulk-upload/template" class="btn btn-outline btn-sm">⬇ Download Template CSV</a>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem; padding:1rem; background:rgba(108,99,255,.08); border-color:var(--accent);">
+    <h4 style="margin-bottom:.5rem;">🔄 Smart Update Logic</h4>
+    <ul style="color:var(--muted); font-size:.9rem; line-height:2; padding-left:1.2rem;">
+      <li>If SKU exists → <strong style="color:var(--text);">update</strong> price, stock, description, image</li>
+      <li>If SKU is new or empty → <strong style="color:var(--text);">create</strong> new product</li>
+      <li>All stock changes are automatically logged in the Stock Log</li>
+      <li>Categories are created automatically if they don't exist</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:1rem;">Upload CSV File</h3>
+    <form method="post" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>CSV File</label>
+        <input type="file" name="csv_file" accept=".csv" required style="padding:.5rem;">
+      </div>
+      <button type="submit" class="btn btn-primary" style="padding:.75rem 2rem;">Upload & Process</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

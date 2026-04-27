@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} — QuickCart{% endblock %}
+{% block extra_head %}
+<style>
+.product-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; margin-top: 2rem; }
+@media(max-width:700px) { .product-layout { grid-template-columns: 1fr; } }
+
+/* Gallery */
+.main-image-wrap {
+  position: relative; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--border);
+  aspect-ratio: 1; background: var(--bg2);
+}
+.main-image-wrap img { width: 100%; height: 100%; object-fit: cover; transition: opacity .3s; }
+.thumb-strip { display: flex; gap: .5rem; margin-top: .6rem; flex-wrap: wrap; }
+.thumb-item {
+  width: 64px; height: 64px; border-radius: 8px; overflow: hidden;
+  border: 2px solid var(--border); cursor: pointer; flex-shrink: 0;
+  transition: border-color .2s;
+}
+.thumb-item:hover, .thumb-item.active { border-color: var(--accent); }
+.thumb-item img { width: 100%; height: 100%; object-fit: cover; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container" style="max-width:960px;">
+  <a href="/shop" style="color:var(--muted); font-size:.9rem;">← Back to Shop</a>
+
+  <div class="product-layout">
+    <!-- LEFT: Image Gallery -->
+    <div>
+      <div class="main-image-wrap">
+        <img id="main-img"
+             src="{{ product.primary_image_url }}"
+             alt="{{ product.name }}">
+      </div>
+
+      <!-- Thumbnail strip (shown only when multiple uploaded images) -->
+      {% if product.images|length > 1 %}
+      <div class="thumb-strip">
+        {% for img in product.images %}
+        <div class="thumb-item {% if img.is_primary %}active{% endif %}"
+             onclick="switchImage('{{ url_for('static', filename='uploads/products/' + img.filename) }}', this)">
+          <img src="{{ url_for('static', filename='uploads/products/thumbs/' + img.filename) }}" alt="">
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- RIGHT: Product Info -->
+    <div>
+      <span style="font-size:.8rem; color:var(--muted);">{{ product.cat.name if product.cat else 'Uncategorized' }}</span>
+      <h1 style="font-size:1.8rem; margin:.5rem 0 1rem;">{{ product.name }}</h1>
+
+      <div style="font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; color:var(--accent); margin-bottom:1rem;">
+        ₹{{ "%.0f"|format(product.price) }}
+      </div>
+
+      {% if current_user.is_authenticated and current_user.role == 'reseller' %}
+      <div class="card" style="margin-bottom:1rem; border-color:var(--gold); padding:1rem;">
+        <div style="font-size:.82rem; color:var(--muted);">Your Reseller Price ({{ current_user.reseller_discount|int }}% off)</div>
+        <div style="font-size:1.5rem; font-weight:700; color:var(--gold);">
+          ₹{{ "%.0f"|format(product.price * (1 - current_user.reseller_discount/100)) }}
+        </div>
+      </div>
+      {% endif %}
+
+      <p style="color:var(--muted); line-height:1.8; margin-bottom:1.5rem;">
+        {{ product.description or 'No description available.' }}
+      </p>
+
+      {% if product.sku %}
+      <div style="font-size:.8rem; color:var(--muted); margin-bottom:1rem;">
+        SKU: <code>{{ product.sku }}</code>
+      </div>
+      {% endif %}
+
+      <!-- Stock indicator -->
+      {% if product.stock > 10 %}
+        <span class="stock-badge stock-ok">✓ In Stock ({{ product.stock }} available)</span>
+      {% elif product.stock > 0 %}
+        <span class="stock-badge stock-low">⚠ Only {{ product.stock }} left!</span>
+      {% else %}
+        <span class="stock-badge stock-out">✗ Out of Stock</span>
+      {% endif %}
+
+      {% if product.stock > 0 %}
+      <div style="display:flex; gap:1rem; align-items:center; margin-top:1.5rem;">
+        <div style="display:flex; align-items:center; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+          <button onclick="changeQty(-1)" style="background:var(--bg3); border:none; color:var(--text); padding:.6rem 1rem; cursor:pointer; font-size:1.1rem;">−</button>
+          <input type="number" id="qty" value="1" min="1" max="{{ product.stock }}"
+                 style="width:60px; text-align:center; border:none; background:var(--bg2); color:var(--text); font-size:1rem; border-radius:0;">
+          <button onclick="changeQty(1)" style="background:var(--bg3); border:none; color:var(--text); padding:.6rem 1rem; cursor:pointer; font-size:1.1rem;">+</button>
+        </div>
+        <button class="btn btn-primary" style="flex:1; padding:.7rem; font-size:.95rem;" onclick="addToCartQty({{ product.id }})">
+          🛒 Add to Cart
+        </button>
+      </div>
+      {% endif %}
+
+      <div style="display:flex; gap:1rem; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border);">
+        {% for icon, text in [('🔒','Secure checkout'),('📦','Fast dispatch'),('↩','Easy returns')] %}
+        <div style="display:flex; align-items:center; gap:.3rem; font-size:.8rem; color:var(--muted);">
+          {{ icon }} {{ text }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeQty(delta) {
+  const input = document.getElementById('qty');
+  const max   = parseInt(input.max);
+  const newVal = Math.max(1, Math.min(max, parseInt(input.value || 1) + delta));
+  input.value = newVal;
+}
+
+function addToCartQty(pid) {
+  const qty = parseInt(document.getElementById('qty').value) || 1;
+  addToCart(pid, qty);
+}
+
+function switchImage(url, thumb) {
+  document.getElementById('main-img').style.opacity = '0';
+  setTimeout(() => {
+    document.getElementById('main-img').src = url;
+    document.getElementById('main-img').style.opacity = '1';
+  }, 150);
+  document.querySelectorAll('.thumb-item').forEach(t => t.classList.remove('active'));
+  thumb.classList.add('active');
+}
+</script>
+{% endblock %}

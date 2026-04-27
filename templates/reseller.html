@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Reseller Dashboard — QuickCart{% endblock %}
+{% block extra_head %}
+<style>
+.calc-row { display:grid; grid-template-columns:2fr 80px 80px 100px; gap:.5rem; align-items:center; margin-bottom:.5rem; }
+.result-table th { font-size:.75rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>Reseller Dashboard</h1>
+    <p>Your discount: <strong style="color:var(--gold);">{{ discount|int }}% off all products</strong></p>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin-bottom:2rem;">
+    <div class="card" style="border-color:var(--gold);">
+      <div style="font-size:.85rem; color:var(--muted);">Your Reseller Discount</div>
+      <div style="font-size:2.5rem; font-weight:800; font-family:'Syne',sans-serif; color:var(--gold);">{{ discount|int }}%</div>
+      <div style="font-size:.85rem; color:var(--muted); margin-top:.3rem;">Applied automatically at checkout</div>
+    </div>
+    <div class="card">
+      <div style="font-size:.85rem; color:var(--muted);">How Reselling Works</div>
+      <div style="font-size:.9rem; color:var(--muted); margin-top:.8rem; line-height:1.7;">
+        1. Buy at your discounted price<br>
+        2. Set your selling margin below<br>
+        3. Calculate profit instantly<br>
+        4. Place bulk orders via cart
+      </div>
+    </div>
+  </div>
+
+  <!-- Profit Calculator -->
+  <div class="card" style="margin-bottom:2rem;">
+    <h3 style="margin-bottom:1.2rem;">Bulk Profit Calculator</h3>
+    <div style="display:grid; grid-template-columns:2fr 80px 80px 100px; gap:.5rem; margin-bottom:.5rem;">
+      <div style="font-size:.75rem; color:var(--muted); font-weight:600; text-transform:uppercase;">Product</div>
+      <div style="font-size:.75rem; color:var(--muted); font-weight:600; text-transform:uppercase;">Qty</div>
+      <div style="font-size:.75rem; color:var(--muted); font-weight:600; text-transform:uppercase;">Margin%</div>
+      <div></div>
+    </div>
+    <div id="calc-rows">
+      <div class="calc-row">
+        <select class="prod-select" style="width:100%;">
+          {% for p in products %}
+          <option value="{{ p.id }}" data-price="{{ p.price }}">{{ p.name }} (₹{{ "%.0f"|format(p.price) }})</option>
+          {% endfor %}
+        </select>
+        <input type="number" class="qty-input" value="10" min="1">
+        <input type="number" class="margin-input" value="20" min="0" max="200">
+        <button class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
+      </div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="addRow()" style="margin-top:.5rem;">+ Add Product</button>
+    <div style="margin-top:1rem;">
+      <button class="btn btn-gold" onclick="calculate()">Calculate Profit</button>
+    </div>
+
+    <!-- Results -->
+    <div id="calc-results" style="display:none; margin-top:1.5rem;">
+      <h4 style="margin-bottom:.8rem;">Results</h4>
+      <div class="card" style="padding:0; overflow:hidden; margin-bottom:1rem;">
+        <table>
+          <thead><tr>
+            <th>Product</th><th>Your Cost</th><th>Sell Price</th><th>Qty</th><th>Profit</th>
+          </tr></thead>
+          <tbody id="results-body"></tbody>
+        </table>
+      </div>
+      <div style="display:flex; gap:2rem; flex-wrap:wrap;">
+        <div class="card" style="text-align:center; padding:1rem 2rem;">
+          <div style="color:var(--muted); font-size:.85rem;">Total Revenue</div>
+          <div style="font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; color:var(--accent);" id="total-revenue">-</div>
+        </div>
+        <div class="card" style="text-align:center; padding:1rem 2rem; border-color:var(--success);">
+          <div style="color:var(--muted); font-size:.85rem;">Total Profit</div>
+          <div style="font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; color:var(--success);" id="total-profit">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Price List -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:1.2rem 1.5rem; border-bottom:1px solid var(--border);">
+      <h3>Your Price List</h3>
+    </div>
+    <table>
+      <thead><tr><th>Product</th><th>MRP</th><th>Your Price</th><th>Savings</th><th>Stock</th><th>Add to Cart</th></tr></thead>
+      <tbody>
+      {% for p in products %}
+      {% set your_price = p.price * (1 - discount/100) %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td style="color:var(--muted); text-decoration:line-through;">₹{{ "%.0f"|format(p.price) }}</td>
+        <td style="color:var(--gold); font-weight:700;">₹{{ "%.0f"|format(your_price) }}</td>
+        <td style="color:var(--success);">₹{{ "%.0f"|format(p.price - your_price) }}</td>
+        <td>{{ p.stock }}</td>
+        <td><button class="btn btn-primary btn-sm" onclick="addToCart({{ p.id }})">Add</button></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const products = {
+  {% for p in products %}
+  "{{ p.id }}": { name: "{{ p.name }}", price: {{ p.price }} },
+  {% endfor %}
+};
+const discount = {{ discount }};
+
+function addRow() {
+  const template = document.querySelector('.calc-row').cloneNode(true);
+  document.getElementById('calc-rows').appendChild(template);
+}
+function removeRow(btn) {
+  const rows = document.querySelectorAll('.calc-row');
+  if (rows.length > 1) btn.closest('.calc-row').remove();
+}
+
+async function calculate() {
+  const rows = document.querySelectorAll('.calc-row');
+  const items = [];
+  rows.forEach(row => {
+    items.push({
+      product_id: row.querySelector('.prod-select').value,
+      quantity: row.querySelector('.qty-input').value,
+      margin_pct: row.querySelector('.margin-input').value
+    });
+  });
+  const r = await fetch('/reseller/calculate', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({items})
+  });
+  const d = await r.json();
+  const tbody = document.getElementById('results-body');
+  tbody.innerHTML = '';
+  d.results.forEach(res => {
+    tbody.innerHTML += `<tr>
+      <td>${res.product}</td>
+      <td>₹${res.cost_price}</td>
+      <td>₹${res.sell_price}</td>
+      <td>${res.quantity}</td>
+      <td style="color:var(--success); font-weight:700;">₹${res.profit}</td>
+    </tr>`;
+  });
+  document.getElementById('total-revenue').textContent = '₹' + d.total_revenue.toFixed(2);
+  document.getElementById('total-profit').textContent  = '₹' + d.total_profit.toFixed(2);
+  document.getElementById('calc-results').style.display = 'block';
+}
+</script>
+{% endblock %}

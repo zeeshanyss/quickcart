@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Shop — QuickCart{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>Shop</h1>
+    <p>{{ products|length }} products found</p>
+  </div>
+
+  <!-- Filters -->
+  <form method="get" style="display:flex; gap:1rem; flex-wrap:wrap; margin-bottom:2rem; align-items:flex-end;">
+    <div style="flex:1; min-width:200px;">
+      <label>Search</label>
+      <input name="q" value="{{ q }}" placeholder="Search products...">
+    </div>
+    <div style="min-width:160px;">
+      <label>Category</label>
+      <select name="cat">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat.id }}" {% if cat_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="min-width:140px;">
+      <label>Sort</label>
+      <select name="sort">
+        <option value="newest" {% if sort=='newest' %}selected{% endif %}>Newest</option>
+        <option value="price_asc" {% if sort=='price_asc' %}selected{% endif %}>Price ↑</option>
+        <option value="price_desc" {% if sort=='price_desc' %}selected{% endif %}>Price ↓</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <a href="/shop" class="btn btn-outline">Reset</a>
+  </form>
+
+  {% if products %}
+  <div class="product-grid">
+    {% for p in products %}
+    <div class="product-card">
+      <a href="/product/{{ p.id }}">
+        <img src="{{ p.image_url or 'https://placehold.co/300x200/1a1a24/7a7a9a?text=No+Image' }}" alt="{{ p.name }}">
+      </a>
+      <div class="product-card-body">
+        <div class="category">{{ p.cat.name if p.cat else '' }}</div>
+        <h3><a href="/product/{{ p.id }}" style="color:var(--text); text-decoration:none;">{{ p.name }}</a></h3>
+        {% if current_user.is_authenticated and current_user.role == 'reseller' %}
+        <div style="font-size:.78rem; color:var(--muted); margin-top:.2rem;">
+          Your price: <strong style="color:var(--gold);">₹{{ "%.0f"|format(p.price * (1 - current_user.reseller_discount/100)) }}</strong>
+          <span style="color:var(--success);">({{ current_user.reseller_discount|int }}% off)</span>
+        </div>
+        {% endif %}
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:.8rem;">
+          <span class="price">₹{{ "%.0f"|format(p.price) }}</span>
+          {% if p.stock > 10 %}<span class="stock-badge stock-ok">In Stock</span>
+          {% elif p.stock > 0 %}<span class="stock-badge stock-low">{{ p.stock }} left</span>
+          {% else %}<span class="stock-badge stock-out">Out of Stock</span>{% endif %}
+        </div>
+        {% if p.stock > 0 %}
+        <button class="btn btn-primary" style="width:100%; margin-top:.8rem;" onclick="addToCart({{ p.id }})">Add to Cart</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:4rem 0; color:var(--muted);">
+    <div style="font-size:3rem; margin-bottom:1rem;">🔍</div>
+    <h3>No products found</h3>
+    <p>Try a different search or category.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

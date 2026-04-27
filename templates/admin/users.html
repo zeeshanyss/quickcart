@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Users — Admin{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>Users</h1>
+    <a href="/admin" style="font-size:.85rem; color:var(--muted);">← Dashboard</a>
+  </div>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table>
+      <thead><tr>
+        <th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Reseller Discount</th><th>Joined</th><th>Update</th>
+      </tr></thead>
+      <tbody>
+      {% for u in users %}
+      <tr>
+        <td style="color:var(--muted);">{{ u.id }}</td>
+        <td>{{ u.name }}</td>
+        <td style="font-size:.85rem; color:var(--muted);">{{ u.email }}</td>
+        <td>
+          <span class="badge {{ 'badge-cancelled' if u.role=='admin' else 'badge-confirmed' if u.role=='reseller' else 'badge-pending' }}">
+            {{ u.role }}
+          </span>
+        </td>
+        <td style="color:var(--gold);">{{ u.reseller_discount|int }}%</td>
+        <td style="font-size:.85rem; color:var(--muted);">{{ u.created_at.strftime('%d %b %Y') }}</td>
+        <td>
+          <form method="post" action="/admin/users/{{ u.id }}/role" style="display:flex; gap:.4rem; align-items:center;">
+            <select name="role" style="padding:.25rem .5rem; font-size:.8rem; width:100px;">
+              {% for r in ['customer','reseller','admin'] %}
+              <option value="{{ r }}" {% if u.role == r %}selected{% endif %}>{{ r }}</option>
+              {% endfor %}
+            </select>
+            <input type="number" name="discount" value="{{ u.reseller_discount|int }}" min="0" max="100"
+                   style="width:55px; padding:.25rem .4rem; font-size:.8rem;" placeholder="Disc%">
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

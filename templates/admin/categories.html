@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Categories — Admin{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px;">
+  <div class="page-header">
+    <h1>Categories</h1>
+    <a href="/admin" style="font-size:.85rem; color:var(--muted);">← Dashboard</a>
+  </div>
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h3 style="margin-bottom:1rem;">Add Category</h3>
+    <form method="post" style="display:flex; gap:.8rem;">
+      <input name="name" required placeholder="Category name" style="flex:1;">
+      <button type="submit" class="btn btn-primary">Add</button>
+    </form>
+  </div>
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table>
+      <thead><tr><th>ID</th><th>Name</th><th>Products</th></tr></thead>
+      <tbody>
+      {% for c in categories %}
+      <tr>
+        <td style="color:var(--muted);">{{ c.id }}</td>
+        <td>{{ c.name }}</td>
+        <td>{{ c.products|length }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

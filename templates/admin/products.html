@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+{% block title %}Products — Admin{% endblock %}
+{% block extra_head %}
+<style>
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 2rem; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s; position: relative; overflow: hidden;
+}
+.drop-zone.dragover { border-color: var(--accent); background: rgba(108,99,255,.08); }
+.drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width:100%; height:100%; }
+.drop-zone .dz-icon { font-size: 2rem; margin-bottom: .5rem; pointer-events:none; }
+.drop-zone p { color: var(--muted); font-size: .88rem; margin: 0; pointer-events:none; }
+.drop-zone .hint { font-size: .75rem; color: var(--muted); margin-top: .3rem; pointer-events:none; }
+
+.preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px,1fr)); gap: .5rem; margin-top: .8rem; }
+.preview-item { position: relative; border-radius: 8px; overflow: hidden; border: 2px solid var(--border); aspect-ratio: 1; }
+.preview-item img { width: 100%; height: 100%; object-fit: cover; display:block; }
+.preview-item.primary-preview { border-color: var(--accent); }
+.primary-tag { position: absolute; bottom: 3px; left: 3px; background: var(--accent); color: #fff; font-size: .62rem; padding: .1rem .4rem; border-radius: 4px; font-weight: 700; }
+
+.img-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px,1fr)); gap: .5rem; }
+.img-thumb { position: relative; border-radius: 8px; overflow: hidden; border: 2px solid var(--border); aspect-ratio: 1; }
+.img-thumb img { width: 100%; height: 100%; object-fit: cover; display:block; }
+.img-thumb.is-primary { border-color: var(--gold); }
+.img-thumb .img-actions { position: absolute; inset: 0; background: rgba(0,0,0,.65); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .3rem; opacity: 0; transition: opacity .2s; }
+.img-thumb:hover .img-actions { opacity: 1; }
+.img-actions button { font-size: .68rem; padding: .2rem .5rem; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; }
+.btn-make-primary { background: var(--gold); color: #000; }
+.btn-del-img { background: var(--danger); color: #fff; }
+.primary-label { position: absolute; bottom: 3px; left: 3px; background: var(--gold); color: #000; font-size: .6rem; padding: .1rem .35rem; border-radius: 4px; font-weight: 700; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:2rem; padding-top:2rem;">
+    <div>
+      <h1>Products</h1>
+      <a href="/admin" style="font-size:.85rem; color:var(--muted);">← Dashboard</a>
+    </div>
+    <div style="display:flex; gap:.8rem;">
+      <a href="/admin/bulk-upload" class="btn btn-outline">📤 Bulk Upload</a>
+      <button class="btn btn-primary" onclick="toggleForm()">+ Add Product</button>
+    </div>
+  </div>
+
+  <!-- ADD PRODUCT FORM -->
+  <div class="card" id="add-form" style="display:none; margin-bottom:2rem;">
+    <h3 style="margin-bottom:1.2rem;">Add New Product</h3>
+    <form method="post" action="/admin/products/add" enctype="multipart/form-data">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div class="form-group"><label>Name *</label><input name="name" required></div>
+        <div class="form-group">
+          <label>Category *</label>
+          <select name="category_id" required>
+            {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Price (₹) *</label><input type="number" name="price" step="0.01" required></div>
+        <div class="form-group"><label>Stock *</label><input type="number" name="stock" required></div>
+        <div class="form-group"><label>SKU</label><input name="sku" placeholder="Optional"></div>
+        <div class="form-group"><label>Fallback Image URL</label><input name="image_url" placeholder="https://..."></div>
+      </div>
+      <div class="form-group"><label>Description</label><textarea name="description"></textarea></div>
+
+      <div class="form-group">
+        <label>Product Images <span style="color:var(--muted); font-weight:400;">(up to 10 files · max 5MB each · First = cover)</span></label>
+        <div class="drop-zone" id="add-drop">
+          <input type="file" name="product_images" multiple accept="image/*" id="add-file-input">
+          <div class="dz-icon">🖼️</div>
+          <p><strong>Drag &amp; drop</strong> images here or click to browse</p>
+          <p class="hint">JPG · PNG · WEBP · GIF</p>
+        </div>
+        <div class="preview-grid" id="add-preview"></div>
+      </div>
+
+      <div style="display:flex; gap:.8rem; margin-top:.5rem;">
+        <button type="submit" class="btn btn-primary">Save Product</button>
+        <button type="button" class="btn btn-outline" onclick="toggleForm()">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- PRODUCTS TABLE -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <table>
+      <thead><tr>
+        <th style="width:72px;">Cover</th>
+        <th>Name</th><th>Category</th><th>Price</th><th>Stock</th><th>Photos</th><th>Status</th><th>Actions</th>
+      </tr></thead>
+      <tbody>
+      {% for p in products %}
+      <tr>
+        <td>
+          <img src="{{ p.primary_thumb_url }}" alt="{{ p.name }}"
+               style="width:56px; height:56px; object-fit:cover; border-radius:8px; border:1px solid var(--border);">
+        </td>
+        <td>
+          <strong>{{ p.name }}</strong>
+          {% if p.sku %}<div style="font-size:.72rem; color:var(--muted);">{{ p.sku }}</div>{% endif %}
+        </td>
+        <td>{{ p.cat.name if p.cat else '—' }}</td>
+        <td style="font-weight:600; color:var(--accent);">₹{{ "%.0f"|format(p.price) }}</td>
+        <td><span class="stock-badge {{ 'stock-ok' if p.stock > 10 else 'stock-low' if p.stock > 0 else 'stock-out' }}">{{ p.stock }}</span></td>
+        <td>
+          {% if p.images %}
+            <span style="font-size:.82rem; color:var(--success);">{{ p.images|length }} 📷</span>
+          {% else %}
+            <span style="font-size:.8rem; color:var(--muted);">URL only</span>
+          {% endif %}
+        </td>
+        <td><span class="badge {{ 'badge-confirmed' if p.is_active else 'badge-cancelled' }}">{{ 'Active' if p.is_active else 'Inactive' }}</span></td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="openEdit({{ p.id }}, '{{ p.name|replace("'","\\'")|e }}', {{ p.price }}, {{ p.stock }}, {{ p.category_id or 0 }}, {{ 'true' if p.is_active else 'false' }}, '{{ p.description or '' }}')">Edit</button>
+          <form method="post" action="/admin/products/{{ p.id }}/delete" style="display:inline;">
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Deactivate?')">Del</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:300; overflow-y:auto; padding:2rem 1rem;">
+  <div class="card" style="width:640px; max-width:100%; margin:auto; position:relative;">
+    <button onclick="closeEdit()" style="position:absolute; top:1rem; right:1rem; background:none; border:none; color:var(--muted); font-size:1.3rem; cursor:pointer; line-height:1;">✕</button>
+    <h3 style="margin-bottom:1.2rem;">Edit Product</h3>
+
+    <form method="post" id="edit-form" enctype="multipart/form-data">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <div class="form-group"><label>Name</label><input name="name" id="e-name" required></div>
+        <div class="form-group">
+          <label>Category</label>
+          <select name="category_id" id="e-cat">
+            {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="form-group"><label>Price (₹)</label><input type="number" name="price" id="e-price" step="0.01"></div>
+        <div class="form-group"><label>Stock</label><input type="number" name="stock" id="e-stock"></div>
+      </div>
+      <div class="form-group"><label>Description</label><textarea name="description" id="e-desc" style="min-height:60px;"></textarea></div>
+      <div class="form-group">
+        <label style="display:flex; align-items:center; gap:.5rem; cursor:pointer;">
+          <input type="checkbox" name="is_active" id="e-active" style="width:auto;">
+          Active (visible in shop)
+        </label>
+      </div>
+
+      <!-- Existing uploaded images -->
+      <div style="margin-bottom:1.2rem;">
+        <label style="display:block; margin-bottom:.6rem; color:var(--muted);">Current Images
+          <span style="font-size:.75rem;">(hover to set cover or delete)</span>
+        </label>
+        <div class="img-gallery" id="existing-gallery">
+          <span style="color:var(--muted); font-size:.85rem;">Loading...</span>
+        </div>
+      </div>
+
+      <!-- Upload more images -->
+      <div class="form-group">
+        <label>Add More Images</label>
+        <div class="drop-zone" id="edit-drop">
+          <input type="file" name="product_images" multiple accept="image/*" id="edit-file-input">
+          <div class="dz-icon">📁</div>
+          <p><strong>Drag &amp; drop</strong> or click to add images</p>
+          <p class="hint">Added alongside existing images</p>
+        </div>
+        <div class="preview-grid" id="edit-preview"></div>
+      </div>
+
+      <div style="display:flex; gap:.8rem;">
+        <button type="submit" class="btn btn-primary">Update Product</button>
+        <button type="button" class="btn btn-outline" onclick="closeEdit()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleForm() {
+  const f = document.getElementById('add-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  if (f.style.display === 'block') f.scrollIntoView({behavior:'smooth'});
+}
+
+// ── Drag & Drop + Preview ──
+function setupDropZone(dropId, inputId, previewId) {
+  const drop    = document.getElementById(dropId);
+  const input   = document.getElementById(inputId);
+  const preview = document.getElementById(previewId);
+
+  drop.addEventListener('dragover',  e => { e.preventDefault(); drop.classList.add('dragover'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+  drop.addEventListener('drop', e => {
+    e.preventDefault(); drop.classList.remove('dragover');
+    const dt = new DataTransfer();
+    [...e.dataTransfer.files].filter(f => f.type.startsWith('image/')).slice(0,10).forEach(f => dt.items.add(f));
+    input.files = dt.files;
+    showPreviews(input.files, preview);
+  });
+  input.addEventListener('change', () => showPreviews(input.files, preview));
+}
+
+function showPreviews(files, container) {
+  container.innerHTML = '';
+  [...files].slice(0,10).forEach((file, i) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const div = document.createElement('div');
+      div.className = 'preview-item' + (i === 0 ? ' primary-preview' : '');
+      div.innerHTML = `<img src="${e.target.result}" alt="preview">${i===0?'<span class="primary-tag">Cover</span>':''}`;
+      container.appendChild(div);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+setupDropZone('add-drop',  'add-file-input',  'add-preview');
+setupDropZone('edit-drop', 'edit-file-input', 'edit-preview');
+
+// ── Edit Modal ──
+let editPid = null;
+
+function openEdit(pid, name, price, stock, cat, active, desc) {
+  editPid = pid;
+  document.getElementById('edit-form').action = `/admin/products/${pid}/edit`;
+  document.getElementById('e-name').value   = name;
+  document.getElementById('e-price').value  = price;
+  document.getElementById('e-stock').value  = stock;
+  document.getElementById('e-cat').value    = cat;
+  document.getElementById('e-active').checked = active;
+  document.getElementById('e-desc').value   = desc;
+  document.getElementById('edit-preview').innerHTML  = '';
+  document.getElementById('edit-file-input').value   = '';
+  document.getElementById('edit-modal').style.display = 'block';
+  loadImages(pid);
+}
+
+function closeEdit() {
+  document.getElementById('edit-modal').style.display = 'none';
+}
+
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEdit();
+});
+
+async function loadImages(pid) {
+  const gallery = document.getElementById('existing-gallery');
+  gallery.innerHTML = '<span style="color:var(--muted);font-size:.85rem;">Loading...</span>';
+  try {
+    const r = await fetch(`/admin/products/${pid}/images`);
+    const d = await r.json();
+    if (!d.images || d.images.length === 0) {
+      gallery.innerHTML = '<span style="color:var(--muted);font-size:.85rem;">No uploaded images yet — add some below</span>';
+      return;
+    }
+    renderGallery(d.images, pid);
+  } catch(e) {
+    gallery.innerHTML = '<span style="color:var(--muted);font-size:.85rem;">Could not load images</span>';
+  }
+}
+
+function renderGallery(images, pid) {
+  const gallery = document.getElementById('existing-gallery');
+  gallery.innerHTML = '';
+  images.forEach(img => {
+    const div = document.createElement('div');
+    div.className = 'img-thumb' + (img.is_primary ? ' is-primary' : '');
+    div.id = `ithumb-${img.id}`;
+    div.innerHTML = `
+      <img src="${img.url}" alt="">
+      ${img.is_primary ? '<span class="primary-label">Cover</span>' : ''}
+      <div class="img-actions">
+        ${!img.is_primary ? `<button class="btn-make-primary" onclick="setPrimary(${pid},${img.id},event)">Set Cover</button>` : ''}
+        <button class="btn-del-img" onclick="deleteImg(${pid},${img.id},event)">Delete</button>
+      </div>`;
+    gallery.appendChild(div);
+  });
+}
+
+async function setPrimary(pid, imgId, e) {
+  e.stopPropagation();
+  await fetch(`/admin/products/${pid}/images/set-primary/${imgId}`, {method:'POST'});
+  loadImages(pid);
+}
+
+async function deleteImg(pid, imgId, e) {
+  e.stopPropagation();
+  if (!confirm('Delete this image permanently?')) return;
+  await fetch(`/admin/products/${pid}/images/delete/${imgId}`, {method:'POST'});
+  document.getElementById(`ithumb-${imgId}`)?.remove();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Order #{{ order.order_ref }} — QuickCart{% endblock %}
+{% block content %}
+<div class="container" style="max-width:800px;">
+  <a href="/orders" style="color:var(--muted); font-size:.9rem;">← Back to Orders</a>
+  <div style="display:flex; align-items:center; gap:1rem; margin:1.5rem 0 2rem;">
+    <h1 style="font-size:1.8rem;">Order #{{ order.order_ref }}</h1>
+    <span class="badge badge-{{ order.status }}">{{ order.status|title }}</span>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+    <div class="card">
+      <h4 style="margin-bottom:.8rem; color:var(--muted);">Order Info</h4>
+      <div style="font-size:.9rem; line-height:2;">
+        <div><span style="color:var(--muted);">Date:</span> {{ order.created_at.strftime('%d %b %Y, %H:%M') }}</div>
+        <div><span style="color:var(--muted);">Payment:</span> {{ order.payment_method|title }}</div>
+        <div><span style="color:var(--muted);">Ref:</span> <code style="font-size:.8rem;">{{ order.payment_ref }}</code></div>
+      </div>
+    </div>
+    <div class="card">
+      <h4 style="margin-bottom:.8rem; color:var(--muted);">Delivery Address</h4>
+      <p style="font-size:.9rem; color:var(--muted); line-height:1.6;">{{ order.address }}</p>
+    </div>
+  </div>
+
+  <!-- Order lifecycle -->
+  <div class="card" style="margin-bottom:1.5rem;">
+    <h4 style="margin-bottom:1rem;">Order Lifecycle</h4>
+    <div style="display:flex; gap:0; align-items:center; flex-wrap:wrap; gap:.5rem;">
+      {% for s in ['pending','confirmed','shipped','delivered'] %}
+      {% set active = order.status in (['pending','confirmed','shipped','delivered'][:loop.index]) %}
+      <div style="display:flex; align-items:center; gap:.3rem;">
+        <div style="padding:.4rem .9rem; border-radius:20px; font-size:.8rem; font-weight:600;
+             background: {{ 'var(--accent)' if active else 'var(--bg3)' }};
+             color: {{ '#fff' if active else 'var(--muted)' }};">
+          {{ s|title }}
+        </div>
+        {% if not loop.last %}<span style="color:var(--muted);">→</span>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Items -->
+  <div class="card" style="padding:0; overflow:hidden; margin-bottom:1.5rem;">
+    <table>
+      <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Subtotal</th></tr></thead>
+      <tbody>
+      {% for it in order.items %}
+      <tr>
+        <td>{{ it.product.name if it.product else 'N/A' }}</td>
+        <td>₹{{ "%.0f"|format(it.price) }}</td>
+        <td>{{ it.quantity }}</td>
+        <td>₹{{ "%.0f"|format(it.price * it.quantity) }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Totals -->
+  <div class="card" style="max-width:300px; margin-left:auto;">
+    <div style="display:flex; justify-content:space-between; margin-bottom:.5rem; font-size:.9rem;">
+      <span style="color:var(--muted);">Tax (GST)</span><span>₹{{ "%.0f"|format(order.tax) }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; margin-bottom:.5rem; font-size:.9rem;">
+      <span style="color:var(--muted);">Delivery</span><span>{{ '₹' + "%.0f"|format(order.delivery) if order.delivery > 0 else 'FREE' }}</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-family:'Syne',sans-serif; font-size:1.2rem; font-weight:800; color:var(--accent); border-top:1px solid var(--border); padding-top:.8rem;">
+      <span>Total</span><span>₹{{ "%.0f"|format(order.total) }}</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

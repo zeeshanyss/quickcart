@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Register — QuickCart{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:center; padding:4rem 1rem;">
+  <div class="card" style="width:100%; max-width:420px;">
+    <h2 style="margin-bottom:1.5rem; text-align:center;">Create Account</h2>
+    <form method="post">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" name="name" required placeholder="Your Name">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" name="email" required placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" required placeholder="Min 6 characters" minlength="6">
+      </div>
+      <div class="form-group">
+        <label>Account Type</label>
+        <select name="role">
+          <option value="customer">Customer</option>
+          <option value="reseller">Reseller (10% discount)</option>
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; padding:.75rem; justify-content:center;">Create Account</button>
+    </form>
+    <p style="text-align:center; margin-top:1.2rem; color:var(--muted); font-size:.9rem;">
+      Already have an account? <a href="/login">Login</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

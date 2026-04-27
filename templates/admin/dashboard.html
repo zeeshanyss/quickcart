@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard — QuickCart{% endblock %}
+{% block content %}
+<div class="container">
+  <div class="page-header">
+    <h1>⚙ Admin Dashboard</h1>
+    <p>QuickCart management console</p>
+  </div>
+
+  <!-- Stat cards -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1.2rem; margin-bottom:2rem;">
+    {% for val, label, color in [
+      ('₹' ~ "%.0f"|format(total_revenue), 'Total Revenue', 'var(--accent)'),
+      (total_orders, 'Total Orders', 'var(--success)'),
+      (total_products, 'Products', 'var(--warning)'),
+      (total_users, 'Users', 'var(--accent2)'),
+    ] %}
+    <div class="card" style="text-align:center; border-color:{{ color }}33;">
+      <div style="font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:{{ color }};">{{ val }}</div>
+      <div style="color:var(--muted); font-size:.85rem; margin-top:.3rem;">{{ label }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Nav -->
+  <div style="display:flex; gap:.8rem; flex-wrap:wrap; margin-bottom:2rem;">
+    <a href="/admin/products"    class="btn btn-outline">Products</a>
+    <a href="/admin/orders"      class="btn btn-outline">Orders</a>
+    <a href="/admin/users"       class="btn btn-outline">Users</a>
+    <a href="/admin/categories"  class="btn btn-outline">Categories</a>
+    <a href="/admin/bulk-upload" class="btn btn-outline">Bulk Upload</a>
+    <a href="/admin/stock-log"   class="btn btn-outline">Stock Log</a>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+    <!-- Low Stock -->
+    <div class="card">
+      <h3 style="margin-bottom:1rem; color:var(--warning);">⚠ Low Stock Alerts</h3>
+      {% if low_stock %}
+      {% for p in low_stock %}
+      <div style="display:flex; justify-content:space-between; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.9rem;">
+        <span>{{ p.name }}</span>
+        <span class="stock-badge {{ 'stock-out' if p.stock == 0 else 'stock-low' }}">{{ p.stock }} left</span>
+      </div>
+      {% endfor %}
+      {% else %}
+      <p style="color:var(--muted); font-size:.9rem;">All products well stocked ✓</p>
+      {% endif %}
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="card">
+      <h3 style="margin-bottom:1rem;">Recent Orders</h3>
+      {% for o in recent_orders %}
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.9rem;">
+        <div>
+          <strong>#{{ o.order_ref }}</strong>
+          <div style="color:var(--muted); font-size:.8rem;">{{ o.created_at.strftime('%d %b %H:%M') }}</div>
+        </div>
+        <div style="display:flex; gap:.5rem; align-items:center;">
+          <span class="badge badge-{{ o.status }}">{{ o.status }}</span>
+          <span style="font-weight:700; color:var(--accent);">₹{{ "%.0f"|format(o.total) }}</span>
+        </div>
+      </div>
+      {% endfor %}
+      <a href="/admin/orders" style="font-size:.85rem; display:block; margin-top:.8rem;">View all orders →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
